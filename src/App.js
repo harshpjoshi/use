@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { StarRating } from "./StarRating";
+import { useMovies } from "./useMovies";
 
 const KEY = "586d0a28";
 
@@ -308,10 +309,10 @@ function Main({ children }) {
 }
 
 export default function App() {
-  const [movies, setMovies] = useState([]);
-  const [watched, setWatched] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [watched, setWatched] = useState(function () {
+    const data = localStorage.getItem("watched");
+    return data ? JSON.parse(data) : [];
+  });
 
   const [query, setQuery] = useState("");
   const [selectedID, setSelectedID] = useState(null);
@@ -333,52 +334,16 @@ export default function App() {
     setWatched((watched) => watched.filter((data) => data.imdbID !== id));
   }
 
+  const { movies, isLoading, error } = useMovies(
+    query,
+    handleClearSelectedMovie
+  );
+
   useEffect(
     function () {
-      const abortController = new AbortController();
-
-      async function fetchMovies() {
-        try {
-          setIsLoading(true);
-          setError("");
-          const response = await fetch(
-            `http://www.omdbapi.com/?apikey=${KEY}&s=${query}`,
-            { signal: abortController.signal }
-          );
-
-          if (!response.ok) throw new Error("Something went wrong.");
-
-          const data = await response.json();
-
-          if (data.Response === "False") throw new Error("Movie not found");
-
-          setMovies(data.Search);
-        } catch (error) {
-          console.error(error.message);
-
-          if (error.name !== "AbortError") {
-            setError(error.message);
-          }
-        } finally {
-          setIsLoading(false);
-        }
-      }
-
-      if (query.length < 3) {
-        setMovies([]);
-        setError("");
-        return;
-      }
-
-      handleClearSelectedMovie();
-
-      fetchMovies();
-
-      return function () {
-        abortController.abort();
-      };
+      localStorage.setItem("watched", JSON.stringify(watched));
     },
-    [query]
+    [watched]
   );
 
   return (
